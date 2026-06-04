@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 // --- UPDATE THESE WITH YOUR ACTUAL DATA ---
-const SUPABASE_URL = 'https://wbqnuxsdshvfxdznysyx.supabase.co/rest/v1/;
+const SUPABASE_URL = 'https://wbqnuxsdshvfxdznysyx.supabase.co/rest/v1/';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndicW51eHNkc2h2Znhkem55c3l4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0OTA4NDksImV4cCI6MjA5NjA2Njg0OX0.gZvdaAnzCN4i1zOS7LAiKjyYGF5mMoi-0-6saddTNG4';
 const AI_URL = 'https://ah13med-steel-ai-api.hf.space';
 // ------------------------------------------
