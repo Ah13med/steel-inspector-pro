@@ -1,5 +1,5 @@
 {
-  "name": "steel-inspector-pro",
+  "name": "steel-app",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -11,7 +11,8 @@
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "@supabase/supabase-js": "^2.43.4"
+    "@supabase/supabase-js": "^2.43.4",
+    "lucide-react": "^0.390.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.0",
