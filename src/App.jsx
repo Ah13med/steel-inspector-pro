@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Camera, Upload, History, Shield, CheckCircle, XCircle, AlertTriangle, User, Languages, Database, Edit3, Save, Search } from 'lucide-react';
+import { Camera, Upload, History, Shield, CheckCircle, AlertTriangle, User, Database, Edit3, X } from 'lucide-react';
 
 // --- CONFIGURATION ---
 const SUPABASE_URL = 'https://wbqnuxsdshvfxdznysyx.supabase.co';
@@ -54,8 +54,8 @@ export default function App() {
     try {
       const response = await fetch(AI_URL, { method: 'POST', body: fd });
       const aiData = await response.json();
-
-      // If AI finds nothing, we set a default to allow the Editor to "Correct" it
+      
+      // AI fallback if no defect detected
       let detectedSlug = aiData.detections?.[0]?.class.toLowerCase() || 'unknown'; 
       
       const { data: defectInfo } = await supabase.from('defects').select('*').eq('slug', detectedSlug).single();
@@ -69,7 +69,7 @@ export default function App() {
       setResult({ ...savedIns, details: defectInfo });
       fetchHistory();
     } catch (err) {
-      alert("AI offline - using simulation for UI testing");
+      alert("AI offline - check Hugging Face Space");
     } finally {
       setLoading(false);
     }
@@ -77,20 +77,14 @@ export default function App() {
 
   const updateReview = async (status, correctedSlug = null) => {
     const finalSlug = correctedSlug || result.ai_prediction;
-    
     let newDetails = result.details;
     if (correctedSlug) {
         const { data } = await supabase.from('defects').select('*').eq('slug', correctedSlug).single();
         newDetails = data;
     }
-
-    const { error } = await supabase.from('inspections').update({
-      status: status,
-      final_label: finalSlug
-    }).eq('id', result.id);
-
+    const { error } = await supabase.from('inspections').update({ status, final_label: finalSlug }).eq('id', result.id);
     if (!error) {
-      setResult({ ...result, status: status, details: newDetails, ai_prediction: finalSlug });
+      setResult({ ...result, status, details: newDetails, ai_prediction: finalSlug });
       setIsCorrecting(false);
       fetchHistory();
     }
@@ -99,110 +93,97 @@ export default function App() {
   const t = (en, ar) => (lang === 'en' ? en : ar);
 
   return (
-    <div className="min-h-screen bg-black text-gray-200 font-sans selection:bg-orange-500/30">
-      {/* TOP NAVIGATION */}
-      <nav className="p-4 border-b border-white/5 flex justify-between items-center sticky top-0 bg-black/80 backdrop-blur-md z-50">
-        <div className="flex items-center gap-2">
-          <div className="bg-orange-500 p-1.5 rounded-lg"><Shield size={20} color="black" /></div>
-          <span className="font-black text-lg tracking-tight uppercase">Steel<span className="text-orange-500">Inspect</span></span>
+    <div style={styles.container}>
+      {/* HEADER */}
+      <nav style={styles.nav}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Shield color="#f97316" size={24} />
+          <span style={{ fontWeight: '900', fontSize: '18px' }}>STEEL<span style={{color:'#f97316'}}>PRO</span></span>
         </div>
-        <div className="flex gap-3 items-center">
-          <button onClick={() => setLang(lang === 'en' ? 'ar' : 'en')} className="bg-white/5 hover:bg-white/10 px-3 py-1 rounded-md text-xs font-bold transition-all">
-            {lang === 'en' ? 'AR' : 'EN'}
-          </button>
-          <div onClick={() => setRole(role === 'viewer' ? 'editor' : 'viewer')} className="bg-orange-500/10 text-orange-500 border border-orange-500/20 px-3 py-1 rounded-full text-[10px] font-black cursor-pointer hover:bg-orange-500/20 transition-all">
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button onClick={() => setLang(lang === 'en' ? 'ar' : 'en')} style={styles.smBtn}>{lang.toUpperCase()}</button>
+          <div onClick={() => setRole(role === 'viewer' ? 'editor' : 'viewer')} style={styles.roleTag}>
              {t(role.toUpperCase(), role === 'editor' ? 'محرر' : 'مشاهد')}
           </div>
         </div>
       </nav>
 
-      {/* SUB NAV TABS */}
-      <div className="flex bg-white/5 border-b border-white/5">
-        <button onClick={() => setView('inspect')} className={`flex-1 p-4 text-xs font-bold uppercase flex items-center justify-center gap-2 transition-all ${view === 'inspect' ? 'text-orange-500 bg-orange-500/5 border-b-2 border-orange-500' : 'text-gray-500'}`}>
-          <Camera size={14}/> {t('Inspect', 'فحص')}
+      {/* TABS */}
+      <div style={styles.tabs}>
+        <button onClick={() => setView('inspect')} style={view === 'inspect' ? styles.activeTab : styles.tab}>
+          <Camera size={16}/> {t('Inspect', 'فحص')}
         </button>
-        <button onClick={() => setView('history')} className={`flex-1 p-4 text-xs font-bold uppercase flex items-center justify-center gap-2 transition-all ${view === 'history' ? 'text-orange-500 bg-orange-500/5 border-b-2 border-orange-500' : 'text-gray-500'}`}>
-          <History size={14}/> {t('History', 'السجل')}
+        <button onClick={() => setView('history')} style={view === 'history' ? styles.activeTab : styles.tab}>
+          <History size={16}/> {t('History', 'السجل')}
         </button>
       </div>
 
-      <main className="p-6 max-w-lg mx-auto">
+      <main style={{ padding: '20px', maxWidth: '500px', margin: '0 auto' }}>
         {view === 'inspect' && (
-          <div className="space-y-6">
+          <div>
             {!img ? (
-              <div className="flex flex-col gap-4 py-10">
-                <label className="group bg-orange-500 hover:bg-orange-600 p-12 rounded-[2.5rem] flex flex-col items-center gap-4 cursor-pointer transition-all active:scale-95 shadow-2xl shadow-orange-500/20">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', paddingTop: '40px' }}>
+                <label style={styles.mainUpload}>
                   <input type="file" capture="environment" hidden onChange={handleFile} />
-                  <Camera size={48} className="group-hover:scale-110 transition-transform" />
-                  <span className="font-black text-xl uppercase tracking-widest">{t('Live Camera', 'الكاميرا')}</span>
+                  <Camera size={40} />
+                  <span style={{ fontWeight: 'bold', fontSize: '18px' }}>{t('TAKE PHOTO', 'تصوير عينة')}</span>
                 </label>
-                <label className="bg-white/5 hover:bg-white/10 p-5 rounded-2xl flex items-center justify-center gap-3 border border-white/10 cursor-pointer transition-all">
+                <label style={styles.subUpload}>
                   <input type="file" hidden onChange={handleFile} />
-                  <Upload size={20} className="text-orange-500" />
-                  <span className="text-sm font-bold">{t('Upload from Gallery', 'رفع من الاستوديو')}</span>
+                  <Upload size={18} />
+                  <span>{t('Upload Gallery', 'رفع من الاستوديو')}</span>
                 </label>
               </div>
             ) : (
-              <div className="animate-in fade-in zoom-in duration-300">
-                <div className="relative group mb-6">
-                    <img src={img} className="w-full rounded-[2rem] border border-white/10 shadow-2xl" />
-                    <button onClick={() => setImg(null)} className="absolute top-4 right-4 bg-black/60 backdrop-blur-md p-2 rounded-full border border-white/10">✕</button>
+              <div>
+                <div style={{ position: 'relative', marginBottom: '20px' }}>
+                  <img src={img} style={{ width: '100%', borderRadius: '20px', border: '1px solid #333' }} />
+                  <button onClick={() => setImg(null)} style={styles.closeBtn}><X size={18}/></button>
                 </div>
                 
                 {!result ? (
-                  <button onClick={analyze} disabled={loading} className="w-full bg-orange-500 hover:bg-orange-600 disabled:bg-gray-800 p-5 rounded-2xl font-black text-lg shadow-xl shadow-orange-500/20 transition-all">
-                    {loading ? <span className="animate-pulse">{t('Analyzing Surface...', 'جاري المسح...')}</span> : t('Start AI Analysis', 'بدء التحليل')}
+                  <button onClick={analyze} disabled={loading} style={styles.actionBtn}>
+                    {loading ? t('Analyzing...', 'جاري التحليل...') : t('START AI SCAN', 'بدء الفحص')}
                   </button>
                 ) : (
-                  <div className="space-y-4 animate-in slide-in-from-bottom-4 duration-500">
-                    <div className="bg-white/5 border border-white/10 rounded-[2rem] p-6">
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="w-2 h-2 rounded-full bg-red-500 animate-ping"></div>
-                            <h2 className="text-2xl font-black uppercase text-red-500 tracking-tighter">
-                                {result.details ? t(result.details.name_en, result.details.name_ar) : t('No Defect Found', 'لم يتم العثور على عيوب')}
-                            </h2>
-                        </div>
-                        <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-4">Confidence: {(result.confidence * 100).toFixed(1)}%</p>
-
-                        <div className="grid grid-cols-1 gap-4">
-                            <div className="bg-black/40 p-4 rounded-2xl border border-white/5">
-                                <p className="text-orange-500 font-black text-[10px] uppercase mb-1 tracking-widest">{t('Root Causes', 'الأسباب')}</p>
-                                <p className="text-gray-300 text-sm leading-relaxed">{result.details ? t(result.details.causes_en, result.details.causes_ar) : 'Surface appears normal.'}</p>
-                            </div>
-                            <div className="bg-black/40 p-4 rounded-2xl border border-white/5">
-                                <p className="text-green-500 font-black text-[10px] uppercase mb-1 tracking-widest">{t('Prevention', 'الوقاية')}</p>
-                                <p className="text-gray-300 text-sm leading-relaxed">{result.details ? t(result.details.prevention_en, result.details.prevention_ar) : 'Regular maintenance.'}</p>
-                            </div>
-                        </div>
-
-                        {role === 'editor' && result.status === 'pending' && (
-                        <div className="mt-6 flex flex-col gap-3">
-                            {!isCorrecting ? (
-                            <div className="flex gap-3">
-                                <button onClick={() => updateReview('confirmed')} className="flex-1 bg-green-600 hover:bg-green-700 p-4 rounded-xl flex items-center justify-center gap-2 text-sm font-black transition-all">
-                                <CheckCircle size={18}/> {t('Confirm', 'تأكيد')}
-                                </button>
-                                <button onClick={() => setIsCorrecting(true)} className="flex-1 bg-red-600 hover:bg-red-700 p-4 rounded-xl flex items-center justify-center gap-2 text-sm font-black transition-all">
-                                <Edit3 size={18}/> {t('Correct', 'تصحيح')}
-                                </button>
-                            </div>
-                            ) : (
-                            <div className="bg-black/60 p-5 rounded-2xl border-2 border-red-500/30 animate-in zoom-in-95">
-                                <p className="text-[10px] text-red-500 font-black uppercase mb-4 tracking-tighter text-center">{t('Select Correct Classification:', 'اختر التصنيف الصحيح:')}</p>
-                                <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                                {defectList.map(d => (
-                                    <button key={d.id} onClick={() => updateReview('corrected', d.slug)} className="text-left p-3 bg-white/5 hover:bg-white/10 rounded-xl border border-white/10 text-xs font-bold transition-colors">
-                                    {t(d.name_en, d.name_ar)}
-                                    </button>
-                                ))}
-                                </div>
-                                <button onClick={() => setIsCorrecting(false)} className="w-full mt-4 text-[10px] text-gray-500 font-bold uppercase hover:text-white transition-colors">{t('Cancel', 'إلغاء')}</button>
-                            </div>
-                            )}
-                        </div>
-                        )}
-                        <button onClick={() => {setImg(null); setResult(null);}} className="w-full mt-6 text-gray-600 hover:text-orange-500 text-[10px] font-black uppercase tracking-widest transition-colors">{t('Dismiss & New Scan', 'إغلاق ومسح جديد')}</button>
+                  <div style={styles.resultCard}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#ef4444', marginBottom: '5px' }}>
+                      <AlertTriangle size={20} />
+                      <h2 style={{ fontWeight: 'bold', textTransform: 'uppercase' }}>
+                        {result.details ? t(result.details.name_en, result.details.name_ar) : t('No Defect Detected', 'لم يتم العثور على عيب')}
+                      </h2>
                     </div>
+                    <p style={{ color: '#666', fontSize: '12px', marginBottom: '15px' }}>Confidence: {(result.confidence * 100).toFixed(1)}%</p>
+
+                    <div style={styles.infoBox}>
+                      <p style={{ color: '#f97316', fontSize: '10px', fontWeight: 'bold', marginBottom: '4px' }}>{t('CAUSES', 'الأسباب')}</p>
+                      <p style={{ color: '#ccc', fontSize: '14px', marginBottom: '12px' }}>{result.details ? t(result.details.causes_en, result.details.causes_ar) : '---'}</p>
+                      <p style={{ color: '#22c55e', fontSize: '10px', fontWeight: 'bold', marginBottom: '4px' }}>{t('PREVENTION', 'الوقاية')}</p>
+                      <p style={{ color: '#ccc', fontSize: '14px' }}>{result.details ? t(result.details.prevention_en, result.details.prevention_ar) : '---'}</p>
+                    </div>
+
+                    {role === 'editor' && result.status === 'pending' && (
+                      <div style={{ marginTop: '20px' }}>
+                        {!isCorrecting ? (
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            <button onClick={() => updateReview('confirmed')} style={styles.confirmBtn}><CheckCircle size={16}/> {t('Confirm', 'تأكيد')}</button>
+                            <button onClick={() => setIsCorrecting(true)} style={styles.correctBtn}><Edit3 size={16}/> {t('Correct', 'تصحيح')}</button>
+                          </div>
+                        ) : (
+                          <div style={styles.correctionMenu}>
+                            <p style={{ fontSize: '11px', color: '#ef4444', marginBottom: '10px', textAlign: 'center' }}>{t('SELECT CORRECT DEFECT:', 'اختر العيب الصحيح:')}</p>
+                            <div style={{ maxHeight: '150px', overflowY: 'auto', display: 'grid', gap: '8px' }}>
+                              {defectList.map(d => (
+                                <button key={d.id} onClick={() => updateReview('corrected', d.slug)} style={styles.defectBtn}>
+                                  {t(d.name_en, d.name_ar)}
+                                </button>
+                              ))}
+                            </div>
+                            <button onClick={() => setIsCorrecting(false)} style={{ width: '100%', marginTop: '10px', color: '#555', fontSize: '10px', border: 'none', background: 'none' }}>CANCEL</button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -211,23 +192,18 @@ export default function App() {
         )}
 
         {view === 'history' && (
-          <div className="space-y-3 animate-in slide-in-from-right-4">
-            <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-4 text-center">{t('Previous Inspections', 'سجل الفحوصات السابقة')}</h3>
-            {history.length === 0 && <div className="py-20 text-center text-gray-700 font-bold uppercase text-xs tracking-widest">{t('No records found', 'لا توجد بيانات')}</div>}
-            {history.map((item) => (
-              <div key={item.id} className="group bg-white/5 p-4 rounded-2xl border border-white/5 flex justify-between items-center hover:bg-white/[0.07] transition-all">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center border border-white/5 group-hover:border-orange-500/30 transition-colors">
-                    <Database size={16} className="text-orange-500"/>
-                  </div>
+          <div style={{ display: 'grid', gap: '10px' }}>
+            {history.length === 0 && <p style={{ textAlign: 'center', padding: '40px', color: '#444' }}>{t('No history', 'لا يوجد سجلات')}</p>}
+            {history.map(item => (
+              <div key={item.id} style={styles.historyItem}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <Database size={16} color="#f97316"/>
                   <div>
-                    <p className="font-black text-xs uppercase tracking-tight">{item.final_label || item.ai_prediction}</p>
-                    <p className="text-[9px] text-gray-600 font-bold uppercase">{new Date(item.created_at).toLocaleDateString()} • {new Date(item.created_at).toLocaleTimeString()}</p>
+                    <p style={{ fontWeight: 'bold', fontSize: '14px', textTransform: 'uppercase' }}>{item.final_label || item.ai_prediction}</p>
+                    <p style={{ fontSize: '10px', color: '#444' }}>{new Date(item.created_at).toLocaleDateString()}</p>
                   </div>
                 </div>
-                <div className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter ${item.status === 'pending' ? 'bg-orange-500/10 text-orange-500 border border-orange-500/20' : 'bg-green-500/10 text-green-500 border border-green-500/20'}`}>
-                  {item.status}
-                </div>
+                <div style={{ fontSize: '10px', color: item.status === 'pending' ? '#f59e0b' : '#22c55e' }}>{item.status.toUpperCase()}</div>
               </div>
             ))}
           </div>
@@ -236,3 +212,24 @@ export default function App() {
     </div>
   );
 }
+
+const styles = {
+  container: { background: '#050505', color: '#eee', minHeight: '100vh', fontFamily: 'sans-serif' },
+  nav: { padding: '15px 20px', borderBottom: '1px solid #111', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#080808' },
+  smBtn: { background: '#111', border: '1px solid #222', color: '#fff', fontSize: '10px', padding: '4px 8px', borderRadius: '4px' },
+  roleTag: { background: '#f9731611', border: '1px solid #f9731633', color: '#f97316', fontSize: '10px', padding: '4px 10px', borderRadius: '20px', fontWeight: 'bold' },
+  tabs: { display: 'flex', borderBottom: '1px solid #111', background: '#080808' },
+  tab: { flex: 1, padding: '15px', background: 'none', border: 'none', color: '#555', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' },
+  activeTab: { flex: 1, padding: '15px', background: 'none', borderBottom: '2px solid #f97316', color: '#f97316', fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' },
+  mainUpload: { background: '#f97316', color: '#000', padding: '40px', borderRadius: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px', cursor: 'pointer', boxShadow: '0 10px 30px #f9731611' },
+  subUpload: { background: '#111', border: '1px solid #222', color: '#fff', padding: '15px', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer' },
+  closeBtn: { position: 'absolute', top: '10px', right: '10px', background: '#000000aa', border: 'none', color: '#fff', borderRadius: '50%', padding: '5px' },
+  actionBtn: { width: '100%', background: '#f97316', color: '#000', padding: '18px', border: 'none', borderRadius: '15px', fontWeight: 'bold', fontSize: '16px' },
+  resultCard: { background: '#0a0a0a', border: '1px solid #151515', padding: '20px', borderRadius: '25px' },
+  infoBox: { background: '#000', padding: '15px', borderRadius: '15px', border: '1px solid #111' },
+  confirmBtn: { flex: 1, background: '#15803d', color: '#fff', padding: '12px', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' },
+  correctBtn: { flex: 1, background: '#b91c1c', color: '#fff', padding: '12px', border: 'none', borderRadius: '12px', fontWeight: 'bold', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' },
+  correctionMenu: { background: '#000', border: '1px solid #b91c1c33', padding: '15px', borderRadius: '20px' },
+  defectBtn: { background: '#0a0a0a', border: '1px solid #222', color: '#fff', padding: '10px', borderRadius: '8px', textAlign: 'left', fontSize: '12px' },
+  historyItem: { background: '#0a0a0a', border: '1px solid #151515', padding: '15px', borderRadius: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }
+};
